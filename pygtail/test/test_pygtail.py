@@ -10,6 +10,7 @@ import shutil
 import tempfile
 import gzip
 import io
+import zipfile
 
 from pygtail import Pygtail
 
@@ -74,6 +75,25 @@ class PygtailTest(unittest.TestCase):
         self.append(new_lines)
         new_pygtail = Pygtail(self.logfile.name, read_from_end=True)
         self.assertEqual(new_pygtail.read(), new_lines)
+
+    def test_logrotate_zip(self):
+        new_lines = ["4\n5\n", "6\n7\n"]
+        pygtail = Pygtail(self.logfile.name)
+        pygtail.read()
+        self.append(new_lines[0])
+
+        # put content to zip file
+        with zipfile.ZipFile("%s.1.zip" % self.logfile.name, 'w') as zfile:
+            with open(self.logfile.name, 'rb') as logfile:
+                zfile.writestr(os.path.basename(self.logfile.name), logfile.read())
+
+        with open(self.logfile.name, 'w'):
+            # truncate file
+            pass
+
+        self.append(new_lines[1])
+        pygtail = Pygtail(self.logfile.name)
+        self.assertEqual(pygtail.read(), ''.join(new_lines))
 
     def test_logrotate_without_delay_compress(self):
         new_lines = ["4\n5\n", "6\n7\n"]

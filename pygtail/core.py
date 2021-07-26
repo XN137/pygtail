@@ -158,6 +158,24 @@ class Pygtail(object):
             filename = self._rotated_logfile or self.filename
             if filename.endswith('.gz'):
                 self._fh = gzip.open(filename, 'rt')
+            elif filename.endswith('.zip'):
+                import zipfile
+                zip_file = zipfile.ZipFile(filename)
+                assert len(zip_file.filelist) == 1, "more than 1 file in zip: %s" % zip_file.filelist
+                zip_file_fh = zip_file.open(zip_file.filelist[0], 'r')
+                # Zipfile is only seekable since 3.7 - see https://bugs.python.org/issue22908
+                if zip_file_fh.seekable():
+                    import io
+                    self._fh = io.TextIOWrapper(zip_file_fh)
+                else:
+                    try:
+                        from StringIO import StringIO  # python2
+                    except ImportError:
+                        from io import StringIO  # python3
+                    # make seekable copy, which should be fine
+                    # since a rollover zip file should not be receiving further modifications
+                    self._fh = StringIO(zip_file_fh.read().decode())
+                    zip_file_fh.close()
             else:
                 self._fh = open(filename, "r", 1)
             if self.read_from_end and not exists(self._offset_file):
@@ -214,6 +232,10 @@ class Pygtail(object):
             (stat(candidate).st_mtime > stat("%s.1.gz" % self.filename).st_mtime)):
             return candidate
 
+        if (exists(candidate) and exists("%s.1.zip" % self.filename) and
+            (stat(candidate).st_mtime > stat("%s.1.zip" % self.filename).st_mtime)):
+            return candidate
+
         # logrotate(8)
         # with delaycompress
         candidate = "%s.1" % self.filename
@@ -222,6 +244,10 @@ class Pygtail(object):
 
         # without delaycompress
         candidate = "%s.1.gz" % self.filename
+        if exists(candidate):
+            return candidate
+
+        candidate = "%s.1.zip" % self.filename
         if exists(candidate):
             return candidate
 
