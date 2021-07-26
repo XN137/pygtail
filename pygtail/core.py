@@ -34,20 +34,6 @@ from optparse import OptionParser
 __version__ = '0.11.1'
 
 
-PY3 = sys.version_info[0] == 3
-
-if PY3:
-    text_type = str
-else:
-    text_type = unicode
-
-
-def force_text(s, encoding='utf-8', errors='strict'):
-    if isinstance(s, text_type):
-        return s
-    return s.decode(encoding, errors)
-
-
 class Pygtail(object):
     """
     Creates an iterable object that returns only unread lines.
@@ -147,10 +133,7 @@ class Pygtail(object):
         """
         lines = self.readlines()
         if lines:
-            try:
-                return ''.join(lines)
-            except TypeError:
-                return ''.join(force_text(line) for line in lines)
+            return ''.join(lines)
         else:
             return None
 
@@ -174,7 +157,7 @@ class Pygtail(object):
         if not self._fh or self._is_closed():
             filename = self._rotated_logfile or self.filename
             if filename.endswith('.gz'):
-                self._fh = gzip.open(filename, 'r')
+                self._fh = gzip.open(filename, 'rt')
             else:
                 self._fh = open(filename, "r", 1)
             if self.read_from_end and not exists(self._offset_file):
