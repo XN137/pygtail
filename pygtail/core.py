@@ -334,8 +334,11 @@ def main():
                       full_lines=options.full_lines
                       )
 
+    last_line = None
     for line in pygtail:
+        assert isinstance(line, str), "Line is not a string: %r\nlast_line: %r" % (line, last_line)
         sys.stdout.write(line)
+        last_line = line
 
 
 if __name__ == "__main__":
